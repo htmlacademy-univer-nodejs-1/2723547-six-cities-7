@@ -14,7 +14,7 @@ ${chalk.yellow('Пример:')}
 ${chalk.yellow('Команды:')}
     ${chalk.green('--version:')}                   ${chalk.gray('# выводит номер версии')}
     ${chalk.green('--help:')}                      ${chalk.gray('# печатает этот текст')}
-    ${chalk.green('--import <path>:')}             ${chalk.gray('# импортирует данные из TSV')}
+    ${chalk.green('--import <path> <login> <password> <host> <database> <salt>:')} ${chalk.gray('# импортирует данные из TSV в MongoDB')}
     ${chalk.green('--generate <n> <path> <url>')}  ${chalk.gray('# генерирует тестовые данные')}
     `);
   }
