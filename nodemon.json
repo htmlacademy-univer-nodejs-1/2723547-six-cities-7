@@ -1,0 +1,7 @@
+{
+  "watch": [
+    "src"
+  ],
+  "ext": "ts, json",
+  "exec": "node --loader ts-node/esm --experimental-specifier-resolution=node ./src/main.rest.ts | pino-pretty --colorize --translateTime SYS:standard"
+}

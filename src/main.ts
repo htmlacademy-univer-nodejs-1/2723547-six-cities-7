@@ -9,12 +9,14 @@ import { createUserContainer } from './shared/modules/user/index.js';
 import { UserService } from './shared/modules/user/user-service.interface.js';
 import { createOfferContainer } from './shared/modules/offer/index.js';
 import { OfferService } from './shared/modules/offer/index.js';
+import { createCommentContainer } from './shared/modules/comment/index.js';
 
 function bootstrap() {
   const appContainer = Container.merge(
     createMainContainer(),
     createUserContainer(),
     createOfferContainer(),
+    createCommentContainer(),
   );
 
   const cliApplication = new CLIApplication();
