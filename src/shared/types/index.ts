@@ -3,6 +3,7 @@ export * from './component.enum.js';
 export * from './city.type.js';
 export * from './comment.type.js';
 export * from './coordinates.type.js';
+export * from './document-exists.interface.js';
 export * from './offer.type.js';
 export * from './rental-type.type.js';
 export * from './user.type.js';

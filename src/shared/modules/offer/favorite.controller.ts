@@ -1,7 +1,6 @@
 import { inject, injectable } from 'inversify';
 import { Request, Response } from 'express';
-import { StatusCodes } from 'http-status-codes';
-import { BaseController, HttpError, HttpMethod, RequestBody, RequestParams, ValidateObjectIdMiddleware } from '../../libs/rest/index.js';
+import { BaseController, DocumentExistsMiddleware, HttpMethod, RequestBody, RequestParams, ValidateObjectIdMiddleware } from '../../libs/rest/index.js';
 import { Logger } from '../../libs/logger/index.js';
 import { Component } from '../../types/index.js';
 import { OfferService } from './offer-service.interface.js';
@@ -22,13 +21,19 @@ export class FavoriteController extends BaseController {
       path: '/:offerId',
       method: HttpMethod.Post,
       handler: this.create,
-      middlewares: [new ValidateObjectIdMiddleware('offerId')],
+      middlewares: [
+        new ValidateObjectIdMiddleware('offerId'),
+        new DocumentExistsMiddleware(this.offerService, 'Offer', 'offerId'),
+      ],
     });
     this.addRoute({
       path: '/:offerId',
       method: HttpMethod.Delete,
       handler: this.delete,
-      middlewares: [new ValidateObjectIdMiddleware('offerId')],
+      middlewares: [
+        new ValidateObjectIdMiddleware('offerId'),
+        new DocumentExistsMiddleware(this.offerService, 'Offer', 'offerId'),
+      ],
     });
   }
 
@@ -46,15 +51,6 @@ export class FavoriteController extends BaseController {
     res: Response,
   ): Promise<void> {
     const offer = await this.offerService.updateFavoriteStatus(params.offerId as string, true);
-
-    if (! offer) {
-      throw new HttpError(
-        StatusCodes.NOT_FOUND,
-        `Offer with id «${params.offerId}» not found.`,
-        'FavoriteController',
-      );
-    }
-
     const responseData = fillDTO(OfferRdo, offer);
     this.ok(res, responseData);
   }
@@ -64,15 +60,6 @@ export class FavoriteController extends BaseController {
     res: Response,
   ): Promise<void> {
     const offer = await this.offerService.updateFavoriteStatus(params.offerId as string, false);
-
-    if (! offer) {
-      throw new HttpError(
-        StatusCodes.NOT_FOUND,
-        `Offer with id «${params.offerId}» not found.`,
-        'FavoriteController',
-      );
-    }
-
     const responseData = fillDTO(OfferRdo, offer);
     this.ok(res, responseData);
   }

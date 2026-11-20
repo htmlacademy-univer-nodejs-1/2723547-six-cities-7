@@ -1,0 +1,40 @@
+# Users
+
+## Register user
+
+POST http://localhost:4000/users/register HTTP/1.1
+Content-Type: application/json
+
+{
+  "name": "Артем",
+  "email": "artem@test.local",
+  "avatar": "avatar.png",
+  "password": "123456",
+  "type": "pro"
+}
+
+###
+
+## Login
+
+POST http://localhost:4000/users/login HTTP/1.1
+Content-Type: application/json
+
+{
+  "email": "artem@test.local",
+  "password": "123456"
+}
+
+###
+
+## Upload avatar
+
+POST http://localhost:4000/users/6b003d5a6938ee7e645d7f41/avatar HTTP/1.1
+Content-Type: multipart/form-data; boundary=----WebKitFormBoundary7MA4YWxkTrZu0gW
+
+------WebKitFormBoundary7MA4YWxkTrZu0gW
+Content-Disposition: form-data; name="avatar"; filename="apartment-01.jpg"
+Content-Type: image/jpeg
+
+< ../../../../markup/img/apartment-01.jpg
+------WebKitFormBoundary7MA4YWxkTrZu0gW--
