@@ -6,6 +6,7 @@ import { Component } from '../shared/types/index.js';
 import { DatabaseClient } from '../shared/libs/database-client/index.js';
 import { getMongoURI } from '../shared/helpers/index.js';
 import { Controller, ExceptionFilter } from '../shared/libs/rest/index.js';
+import { ParseTokenMiddleware } from '../shared/libs/rest/index.js';
 
 @injectable()
 export class RestApplication {
@@ -54,6 +55,8 @@ export class RestApplication {
       '/upload',
       express.static(this.config.get('UPLOAD_DIRECTORY'))
     );
+    const parseTokenMiddleware = new ParseTokenMiddleware(this.config.get('JWT_SECRET'));
+    this.server.use(parseTokenMiddleware.execute.bind(parseTokenMiddleware));
   }
 
   private async initExceptionFilters() {

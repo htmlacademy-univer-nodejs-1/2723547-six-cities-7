@@ -42,9 +42,6 @@ export class OfferEntity extends defaultClasses.TimeStamps {
   public isPremium!: boolean;
 
   @prop({ required: true })
-  public isFavorite!: boolean;
-
-  @prop({ required: true })
   public rating!: number;
 
   @prop({ required: true, type: () => String, enum: [...AVAILABLE_RENTAL_TYPES_SET] })
@@ -67,6 +64,11 @@ export class OfferEntity extends defaultClasses.TimeStamps {
 
   @prop({ required: true, ref: UserEntity })
   public author!: Ref<UserEntity>;
+
+  @prop({ type: () => [String], default: [] })
+  public favoriteUserIds!: string[];
+
+  public isFavorite!: boolean;
 
   @prop({ required: true, type: () => Object })
   public location!: Coordinates;

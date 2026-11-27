@@ -70,12 +70,10 @@ paths:
         '401':
           description: Пользователь не авторизован.
 
-  /users/{userId}/avatar:
+  /users/avatar:
     post:
       tags: [users]
       summary: Загрузить аватар пользователя
-      parameters:
-        - $ref: '#/components/parameters/UserId'
       requestBody:
         required: true
         content:
@@ -103,7 +101,9 @@ paths:
     get:
       tags: [offers]
       summary: Получить список предложений
-      security: []
+      security:
+        - {}
+        - bearerAuth: []
       parameters:
         - $ref: '#/components/parameters/Count'
       responses:
@@ -140,7 +140,9 @@ paths:
     get:
       tags: [offers]
       summary: Получить подробную информацию о предложении
-      security: []
+      security:
+        - {}
+        - bearerAuth: []
       parameters:
         - $ref: '#/components/parameters/OfferId'
       responses:
@@ -152,9 +154,11 @@ paths:
                 $ref: '#/components/schemas/Offer'
         '404':
           description: Предложение не найдено.
-    patch:
+    put:
       tags: [offers]
       summary: Обновить предложение
+      security:
+        - bearerAuth: []
       parameters:
         - $ref: '#/components/parameters/OfferId'
       requestBody:
@@ -195,7 +199,9 @@ paths:
     get:
       tags: [offers]
       summary: Получить премиальные предложения города
-      security: []
+      security:
+        - {}
+        - bearerAuth: []
       parameters:
         - $ref: '#/components/parameters/City'
       responses:
@@ -211,7 +217,7 @@ paths:
         '404':
           description: Город не найден.
 
-  /offers/favorites:
+  /favorite:
     get:
       tags: [offers]
       summary: Получить избранные предложения
@@ -227,8 +233,8 @@ paths:
         '401':
           description: Пользователь не авторизован.
 
-  /offers/{offerId}/favorite:
-    put:
+  /favorite/{offerId}:
+    post:
       tags: [offers]
       summary: Добавить предложение в избранное
       parameters:
@@ -250,8 +256,36 @@ paths:
       parameters:
         - $ref: '#/components/parameters/OfferId'
       responses:
-        '204':
-          description: Предложение удалено из избранного.
+        '200':
+          description: Статус избранного обновлён.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Offer'
+        '401':
+          description: Пользователь не авторизован.
+        '404':
+          description: Предложение не найдено.
+
+  /comments:
+    post:
+      tags: [comments]
+      summary: Добавить комментарий
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateComment'
+      responses:
+        '201':
+          description: Комментарий создан, рейтинг предложения пересчитан.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Comment'
+        '400':
+          description: Некорректные данные комментария.
         '401':
           description: Пользователь не авторизован.
         '404':
@@ -276,30 +310,6 @@ paths:
                   $ref: '#/components/schemas/Comment'
         '404':
           description: Предложение не найдено.
-    post:
-      tags: [comments]
-      summary: Добавить комментарий
-      parameters:
-        - $ref: '#/components/parameters/OfferId'
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/CreateComment'
-      responses:
-        '201':
-          description: Комментарий создан, рейтинг предложения пересчитан.
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Comment'
-        '400':
-          description: Некорректные данные комментария.
-        '401':
-          description: Пользователь не авторизован.
-        '404':
-          description: Предложение не найдено.
 
 components:
   securitySchemes:
@@ -309,13 +319,6 @@ components:
       bearerFormat: JWT
 
   parameters:
-    UserId:
-      name: userId
-      in: path
-      required: true
-      schema:
-        type: string
-        pattern: '^[a-fA-F0-9]{24}$'
     OfferId:
       name: offerId
       in: path
@@ -360,11 +363,8 @@ components:
 
     User:
       type: object
-      required: [id, name, email, avatar, type]
+      required: [name, email, avatar, type]
       properties:
-        id:
-          type: string
-          example: 6329c3d6a04ab1061c6425ea
         name:
           type: string
           example: Иван Иванов
@@ -414,8 +414,11 @@ components:
 
     LoginResponse:
       type: object
-      required: [token]
+      required: [email, token]
       properties:
+        email:
+          type: string
+          format: email
         token:
           type: string
 
@@ -429,14 +432,12 @@ components:
         - preview
         - photos
         - isPremium
-        - isFavorite
         - rating
         - type
         - roomsCount
         - guestsCount
         - price
         - amenities
-        - author
         - location
       properties:
         name:
@@ -462,8 +463,6 @@ components:
             type: string
         isPremium:
           type: boolean
-        isFavorite:
-          type: boolean
         rating:
           type: number
           minimum: 0
@@ -487,9 +486,6 @@ components:
           minItems: 1
           items:
             $ref: '#/components/schemas/Amenity'
-        author:
-          type: string
-          pattern: '^[a-fA-F0-9]{24}$'
         location:
           $ref: '#/components/schemas/Location'
 
@@ -518,8 +514,6 @@ components:
           items:
             type: string
         isPremium:
-          type: boolean
-        isFavorite:
           type: boolean
         rating:
           type: number
@@ -551,19 +545,15 @@ components:
       allOf:
         - $ref: '#/components/schemas/CreateOffer'
         - type: object
-          required: [id, commentCount, createdAt, updatedAt]
+          required: [id, isFavorite, commentCount]
           properties:
             id:
               type: string
+            isFavorite:
+              type: boolean
             commentCount:
               type: integer
               minimum: 0
-            createdAt:
-              type: string
-              format: date-time
-            updatedAt:
-              type: string
-              format: date-time
 
     OfferPreview:
       type: object
@@ -615,8 +605,11 @@ components:
 
     CreateComment:
       type: object
-      required: [text, rating]
+      required: [text, rating, offerId]
       properties:
+        offerId:
+          type: string
+          pattern: '^[a-fA-F0-9]{24}$'
         text:
           type: string
           minLength: 5
@@ -628,7 +621,7 @@ components:
 
     Comment:
       type: object
-      required: [id, text, date, rating, offerId, userId]
+      required: [id, text, date, rating, user]
       properties:
         id:
           type: string
@@ -641,16 +634,8 @@ components:
           type: integer
           minimum: 1
           maximum: 5
-        offerId:
-          type: string
-        userId:
-          type: string
-        createdAt:
-          type: string
-          format: date-time
-        updatedAt:
-          type: string
-          format: date-time
+        user:
+          $ref: '#/components/schemas/User'
 
 security:
   - bearerAuth: []
