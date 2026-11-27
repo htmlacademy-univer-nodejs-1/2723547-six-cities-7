@@ -1,11 +1,20 @@
 import { inject, injectable } from 'inversify';
 import { Request, Response } from 'express';
-import { BaseController, DocumentExistsMiddleware, HttpMethod, RequestBody, RequestParams, ValidateObjectIdMiddleware } from '../../libs/rest/index.js';
+import {
+  BaseController,
+  DocumentExistsMiddleware,
+  HttpMethod,
+  PrivateRouteMiddleware,
+  RequestBody,
+  RequestParams,
+  ValidateObjectIdMiddleware,
+} from '../../libs/rest/index.js';
 import { Logger } from '../../libs/logger/index.js';
 import { Component } from '../../types/index.js';
 import { OfferService } from './offer-service.interface.js';
 import { fillDTO } from '../../helpers/index.js';
 import { OfferRdo } from './rdo/offer.rdo.js';
+import { getAuthenticatedUserId } from '../auth/index.js';
 
 @injectable()
 export class FavoriteController extends BaseController {
@@ -16,12 +25,18 @@ export class FavoriteController extends BaseController {
     super(logger);
     this.logger.info('Register routes for FavoriteController…');
 
-    this.addRoute({ path: '/', method: HttpMethod.Get, handler: this.index });
+    this.addRoute({
+      path: '/',
+      method: HttpMethod.Get,
+      handler: this.index,
+      middlewares: [new PrivateRouteMiddleware()],
+    });
     this.addRoute({
       path: '/:offerId',
       method: HttpMethod.Post,
       handler: this.create,
       middlewares: [
+        new PrivateRouteMiddleware(),
         new ValidateObjectIdMiddleware('offerId'),
         new DocumentExistsMiddleware(this.offerService, 'Offer', 'offerId'),
       ],
@@ -31,6 +46,7 @@ export class FavoriteController extends BaseController {
       method: HttpMethod.Delete,
       handler: this.delete,
       middlewares: [
+        new PrivateRouteMiddleware(),
         new ValidateObjectIdMiddleware('offerId'),
         new DocumentExistsMiddleware(this.offerService, 'Offer', 'offerId'),
       ],
@@ -38,28 +54,36 @@ export class FavoriteController extends BaseController {
   }
 
   public async index(
-    _req: Request,
+    { tokenPayload }: Request,
     res: Response,
   ): Promise<void> {
-    const offers = await this.offerService.findFavorites();
+    const offers = await this.offerService.findFavorites(getAuthenticatedUserId(tokenPayload));
     const responseData = fillDTO(OfferRdo, offers);
     this.ok(res, responseData);
   }
 
   public async create(
-    { params }: Request<RequestParams, RequestBody, unknown>,
+    { params, tokenPayload }: Request<RequestParams, RequestBody, unknown>,
     res: Response,
   ): Promise<void> {
-    const offer = await this.offerService.updateFavoriteStatus(params.offerId as string, true);
+    const offer = await this.offerService.updateFavoriteStatus(
+      params.offerId as string,
+      getAuthenticatedUserId(tokenPayload),
+      true,
+    );
     const responseData = fillDTO(OfferRdo, offer);
     this.ok(res, responseData);
   }
 
   public async delete(
-    { params }: Request<RequestParams, RequestBody, unknown>,
+    { params, tokenPayload }: Request<RequestParams, RequestBody, unknown>,
     res: Response,
   ): Promise<void> {
-    const offer = await this.offerService.updateFavoriteStatus(params.offerId as string, false);
+    const offer = await this.offerService.updateFavoriteStatus(
+      params.offerId as string,
+      getAuthenticatedUserId(tokenPayload),
+      false,
+    );
     const responseData = fillDTO(OfferRdo, offer);
     this.ok(res, responseData);
   }

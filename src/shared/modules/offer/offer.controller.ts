@@ -3,7 +3,9 @@ import { Request, Response } from 'express';
 import {
   BaseController,
   DocumentExistsMiddleware,
+  HttpError,
   HttpMethod,
+  PrivateRouteMiddleware,
   RequestBody,
   RequestParams,
   ValidateDtoMiddleware,
@@ -20,6 +22,8 @@ import { CreateOfferRequest } from './create-offer-request.type.js';
 import { UpdateOfferRequest } from './update-offer-request.type.js';
 import { CreateOfferDto } from './dto/create-offer.dto.js';
 import { UpdateOfferDto } from './dto/update-offer.dto.js';
+import { StatusCodes } from 'http-status-codes';
+import { getAuthenticatedUserId } from '../auth/index.js';
 
 const DEFAULT_OFFER_COUNT = 60;
 
@@ -56,13 +60,17 @@ export class OfferController extends BaseController {
       path: '/',
       method: HttpMethod.Post,
       handler: this.create,
-      middlewares: [new ValidateDtoMiddleware(CreateOfferDto)],
+      middlewares: [
+        new PrivateRouteMiddleware(),
+        new ValidateDtoMiddleware(CreateOfferDto),
+      ],
     });
     this.addRoute({
       path: '/:offerId',
       method: HttpMethod.Put,
       handler: this.update,
       middlewares: [
+        new PrivateRouteMiddleware(),
         new ValidateObjectIdMiddleware('offerId'),
         new ValidateDtoMiddleware(UpdateOfferDto),
         new DocumentExistsMiddleware(this.offerService, 'Offer', 'offerId'),
@@ -73,6 +81,7 @@ export class OfferController extends BaseController {
       method: HttpMethod.Delete,
       handler: this.delete,
       middlewares: [
+        new PrivateRouteMiddleware(),
         new ValidateObjectIdMiddleware('offerId'),
         new DocumentExistsMiddleware(this.offerService, 'Offer', 'offerId'),
       ],
@@ -81,55 +90,68 @@ export class OfferController extends BaseController {
   }
 
   public async index(
-    { query }: Request<RequestParams, RequestBody, unknown, { count?: string }>,
+    { query, tokenPayload }: Request<RequestParams, RequestBody, unknown, { count?: string }>,
     res: Response,
   ): Promise<void> {
     const parsedCount = Number.parseInt(query.count ?? '', 10);
-    const offers = await this.offerService.find(Number.isNaN(parsedCount) ? DEFAULT_OFFER_COUNT : parsedCount);
+    const offers = await this.offerService.find(
+      Number.isNaN(parsedCount) ? DEFAULT_OFFER_COUNT : parsedCount,
+      tokenPayload?.id,
+    );
     const responseData = fillDTO(OfferRdo, offers);
     this.ok(res, responseData);
   }
 
   public async show(
-    { params }: Request<RequestParams, RequestBody, unknown>,
+    { params, tokenPayload }: Request<RequestParams, RequestBody, unknown>,
     res: Response,
   ): Promise<void> {
-    const offer = await this.offerService.findById(params.offerId as string);
+    const offer = await this.offerService.findById(params.offerId as string, tokenPayload?.id);
     const responseData = fillDTO(OfferRdo, offer);
     this.ok(res, responseData);
   }
 
   public async create(
-    { body }: CreateOfferRequest,
+    { body, tokenPayload }: CreateOfferRequest,
     res: Response,
   ): Promise<void> {
-    const result = await this.offerService.create(body);
-    const responseData = fillDTO(OfferRdo, result);
+    const userId = getAuthenticatedUserId(tokenPayload);
+    const result = await this.offerService.create({
+      ...body,
+      author: userId,
+    });
+    const offer = await this.offerService.findById(result.id, userId);
+    const responseData = fillDTO(OfferRdo, offer);
     this.created(res, responseData);
   }
 
   public async update(
-    { params, body }: UpdateOfferRequest,
+    { params, body, tokenPayload }: UpdateOfferRequest,
     res: Response,
   ): Promise<void> {
-    const offer = await this.offerService.updateById(params.offerId as string, body);
+    const offerId = params.offerId as string;
+    const userId = getAuthenticatedUserId(tokenPayload);
+    await this.ensureOfferOwner(offerId, userId);
+    const offer = await this.offerService.updateById(offerId, body, userId);
     const responseData = fillDTO(OfferRdo, offer);
     this.ok(res, responseData);
   }
 
   public async delete(
-    { params }: Request<RequestParams, RequestBody, unknown>,
+    { params, tokenPayload }: Request<RequestParams, RequestBody, unknown>,
     res: Response,
   ): Promise<void> {
-    const offer = await this.offerService.deleteById(params.offerId as string);
+    const offerId = params.offerId as string;
+    await this.ensureOfferOwner(offerId, getAuthenticatedUserId(tokenPayload));
+    const offer = await this.offerService.deleteById(offerId);
     this.noContent(res, offer);
   }
 
   public async premium(
-    { params }: Request<RequestParams, RequestBody, unknown>,
+    { params, tokenPayload }: Request<RequestParams, RequestBody, unknown>,
     res: Response,
   ): Promise<void> {
-    const offers = await this.offerService.findPremiumByCity(params.city as City);
+    const offers = await this.offerService.findPremiumByCity(params.city as City, tokenPayload?.id);
     const responseData = fillDTO(OfferRdo, offers);
     this.ok(res, responseData);
   }
@@ -141,5 +163,17 @@ export class OfferController extends BaseController {
     const comments = await this.commentService.findByOfferId(params.offerId as string);
     const responseData = fillDTO(CommentRdo, comments);
     this.ok(res, responseData);
+  }
+
+  private async ensureOfferOwner(offerId: string, userId: string): Promise<void> {
+    const offer = await this.offerService.findById(offerId, userId);
+
+    if (!offer || offer.author !== userId) {
+      throw new HttpError(
+        StatusCodes.FORBIDDEN,
+        'You can only modify your own offers',
+        'OfferController',
+      );
+    }
   }
 }

@@ -1,9 +1,8 @@
 import { inject, injectable } from 'inversify';
 import { Types } from 'mongoose';
 import { DocumentType, types } from '@typegoose/typegoose';
-import { CommentService } from './comment-service.interface.js';
+import { CommentService, CreateCommentServiceDto } from './comment-service.interface.js';
 import { CommentEntity } from './comment.entity.js';
-import { CreateCommentDto } from './dto/create-comment.dto.js';
 import { Component, SortType } from '../../types/index.js';
 import { OfferService } from '../offer/index.js';
 import { MAX_COMMENTS_COUNT } from './comment.constant.js';
@@ -15,7 +14,7 @@ export class DefaultCommentService implements CommentService {
     @inject(Component.OfferService) private readonly offerService: OfferService,
   ) {}
 
-  public async create(dto: CreateCommentDto): Promise<DocumentType<CommentEntity>> {
+  public async create(dto: CreateCommentServiceDto): Promise<DocumentType<CommentEntity>> {
     const comment = await this.commentModel.create({
       ...dto,
       date: new Date(),
@@ -23,7 +22,7 @@ export class DefaultCommentService implements CommentService {
 
     await this.updateOfferStatistics(dto.offerId);
 
-    return comment;
+    return comment.populate('userId');
   }
 
   public async findByOfferId(offerId: string): Promise<DocumentType<CommentEntity>[]> {

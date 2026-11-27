@@ -6,7 +6,6 @@ import {
   IsDateString,
   IsIn,
   IsInt,
-  IsMongoId,
   IsString,
   IsUrl,
   Length,
@@ -54,9 +53,6 @@ export class CreateOfferDto {
   @IsBoolean({ message: CreateOfferMessages.isPremium.invalidFormat })
   public isPremium: boolean;
 
-  @IsBoolean({ message: CreateOfferMessages.isFavorite.invalidFormat })
-  public isFavorite: boolean;
-
   @Min(1, { message: CreateOfferMessages.rating.minValue })
   @Max(5, { message: CreateOfferMessages.rating.maxValue })
   public rating: number;
@@ -83,10 +79,11 @@ export class CreateOfferDto {
   @IsIn([...AVAILABLE_AMENITIES_SET], { each: true, message: CreateOfferMessages.amenities.invalidItem })
   public amenities: Amenity[];
 
-  @IsMongoId({ message: CreateOfferMessages.author.invalidId })
-  public author: string;
-
   @ValidateNested()
   @Type(() => LocationDto)
   public location: Coordinates;
 }
+
+export type CreateOfferServiceDto = CreateOfferDto & {
+  author: string;
+};
